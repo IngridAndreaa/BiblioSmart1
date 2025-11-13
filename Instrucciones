@@ -1,0 +1,30 @@
+
+Problema
+
+
+
+
+Solucion
+Quiero desarrollar una biblioteca personal y comunitaria 
+en donde los usuarios pueden compartir sus preferencias
+
+El flujo de la aplicacion sera
+
+- registro inicial usando cuenta google, requiere tambien  registrar un nombre de usuario y el sistema hara preguntas de mis preferencias literarias para guardarlas en su base de datos para futuras recomendaciones de libros
+
+
+- Login usando la cuenta google ya registrada en el sistema, si no esta que aparezca un mensaje: ooops cuenta no registrada.
+
+
+- una vez iniciada sesion ... que las alternativas de funcionalidad se presenta en un slide (carousel) que presente el caso
+
+            registrar libros (dentro de esta opcion direccionar a otra pagina donde aparezca el registro de libros.	El sistema debe permitir ingresar título, autor, ISBN, fecha de ingreso y estado de lectura. ademas debe tener un espacio para escribir reseñany evaluar los libros con estrellas)
+            
+            ver libros registrados y editar
+
+            recomendacion de libros por IA
+
+           
+
+desarrolla una aplicacion html con bootstrap que realice el problema y la solucion,
+que sea responsivo 

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BiblioSmart - Login</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+  <style>
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .login-container {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      overflow: hidden;
+      max-width: 500px;
+      width: 100%;
+    }
+    .login-header {
+      background: linear-gradient(135deg, #563d7c, #8e6cbd);
+      color: white;
+      padding: 2rem;
+      text-align: center;
+    }
+    .login-body {
+      padding: 2rem;
+    }
+    .google-btn {
+      background: #4285f4;
+      color: white;
+      border: none;
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: all 0.3s;
+    }
+    .google-btn:hover {
+      background: #357ae8;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(66, 133, 244, 0.4);
+    }
+    .form-section {
+      display: none;
+    }
+    .form-section.active {
+      display: block;
+    }
+    .preferences-form {
+      margin-top: 1.5rem;
+    }
+    .genre-checkbox {
+      margin: 0.5rem;
+    }
+    .alert-custom {
+      border-radius: 10px;
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="login-container">
+      <div class="login-header">
+        <h1 class="mb-2"><i class="bi bi-book"></i> BiblioSmart</h1>
+        <p class="mb-0">Tu Biblioteca Personal y Comunitaria</p>
+      </div>
+      <div class="login-body">
+        <!-- Sección de Login -->
+        <div id="loginSection" class="form-section active">
+          <h3 class="text-center mb-4">Iniciar Sesión</h3>
+          <button class="google-btn" onclick="handleGoogleLogin()">
+            <i class="bi bi-google"></i>
+            Continuar con Google
+          </button>
+          <div id="loginAlert" class="alert alert-danger alert-custom" style="display: none;"></div>
+        </div>
+
+        <!-- Sección de Registro -->
+        <div id="registerSection" class="form-section">
+          <h3 class="text-center mb-4">Completa tu Registro</h3>
+          <form id="registerForm">
+            <div class="mb-3">
+              <label for="username" class="form-label">Nombre de Usuario *</label>
+              <input type="text" class="form-control" id="username" required>
+            </div>
+            <div class="mb-3">
+              <label for="email" class="form-label">Email de Google</label>
+              <input type="email" class="form-control" id="email" readonly>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Géneros Literarios Favoritos *</label>
+              <div class="d-flex flex-wrap">
+                <div class="form-check genre-checkbox">
+                  <input class="form-check-input" type="checkbox" value="Fantasía" id="genre1" name="genres">
+                  <label class="form-check-label" for="genre1">Fantasía</label>
+                </div>
+                <div class="form-check genre-checkbox">
+                  <input class="form-check-input" type="checkbox" value="Ciencia Ficción" id="genre2" name="genres">
+                  <label class="form-check-label" for="genre2">Ciencia Ficción</label>
+                </div>
+                <div class="form-check genre-checkbox">
+                  <input class="form-check-input" type="checkbox" value="Romance" id="genre3" name="genres">
+                  <label class="form-check-label" for="genre3">Romance</label>
+                </div>
+                <div class="form-check genre-checkbox">
+                  <input class="form-check-input" type="checkbox" value="Suspenso" id="genre4" name="genres">
+                  <label class="form-check-label" for="genre4">Suspenso</label>
+                </div>
+                <div class="form-check genre-checkbox">
+                  <input class="form-check-input" type="checkbox" value="No Ficción" id="genre5" name="genres">
+                  <label class="form-check-label" for="genre5">No Ficción</label>
+                </div>
+                <div class="form-check genre-checkbox">
+                  <input class="form-check-input" type="checkbox" value="Biografía" id="genre6" name="genres">
+                  <label class="form-check-label" for="genre6">Biografía</label>
+                </div>
+                <div class="form-check genre-checkbox">
+                  <input class="form-check-input" type="checkbox" value="Historia" id="genre7" name="genres">
+                  <label class="form-check-label" for="genre7">Historia</label>
+                </div>
+                <div class="form-check genre-checkbox">
+                  <input class="form-check-input" type="checkbox" value="Misterio" id="genre8" name="genres">
+                  <label class="form-check-label" for="genre8">Misterio</label>
+                </div>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label for="booksPerMonth" class="form-label">¿Cuántos libros lees al mes? *</label>
+              <input type="number" class="form-control" id="booksPerMonth" min="0" max="50" required>
+            </div>
+            <div class="mb-3">
+              <label for="favoriteAuthors" class="form-label">Autores Favoritos</label>
+              <input type="text" class="form-control" id="favoriteAuthors" placeholder="Ej: Gabriel García Márquez, Isabel Allende">
+            </div>
+            <div class="mb-3">
+              <label for="readingFormat" class="form-label">Formato de Lectura Preferido *</label>
+              <select class="form-select" id="readingFormat" required>
+                <option value="">Selecciona un formato</option>
+                <option value="Físico">Físico</option>
+                <option value="Digital">Digital</option>
+                <option value="Audiolibro">Audiolibro</option>
+                <option value="Ambos">Ambos</option>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Completar Registro</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/auth.js"></script>
+</body>
+</html>
