@@ -4,8 +4,8 @@ document.addEventListener('DOMContentLoaded', function() {
   updateDashboardStats();
 });
 
-function updateDashboardStats() {
-  const books = getUserBooks();
+async function updateDashboardStats() {
+  const books = await getUserBooks();
   
   // Total de libros
   document.getElementById('totalBooks').textContent = books.length;

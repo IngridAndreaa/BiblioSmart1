@@ -1,0 +1,187 @@
+@startuml BiblioSmart - Diagrama de Clases
+
+' Configuración
+skinparam classAttributeIconSize 0
+skinparam backgroundColor #FFFFFF
+
+' ===========================================
+' MODELOS DE DATOS (Mongoose Schemas)
+' ===========================================
+
+class User {
+  -_id: ObjectId
+  -username: String
+  -email: String
+  -preferences: UserPreferences
+  -createdAt: Date
+  -updatedAt: Date
+  --
+  +pre('save', callback): void
+  +save(): Promise<User>
+  +findOne(query): Promise<User>
+  +findById(id): Promise<User>
+}
+
+class UserPreferences {
+  -genres: String[]
+  -booksPerMonth: Number
+  -favoriteAuthors: String[]
+  -readingFormat: String
+  --
+  Note right: Enum readingFormat:\nFísico, Digital,\nAudiolibro, Ambos
+}
+
+class Book {
+  -_id: ObjectId
+  -userId: ObjectId
+  -title: String
+  -author: String
+  -isbn: String
+  -entryDate: Date
+  -readingStatus: String
+  -rating: Number
+  -review: String
+  -createdAt: Date
+  -updatedAt: Date
+  --
+  +pre('save', callback): void
+  +save(): Promise<Book>
+  +find(query): Promise<Book[]>
+  +findById(id): Promise<Book>
+  +findByIdAndDelete(id): Promise<Book>
+  +index(keys): void
+  Note right: Enum readingStatus:\nPor leer, Leyendo,\nLeído, Abandonado\n\nRating: 1-5
+}
+
+' ===========================================
+' RUTAS Y CONTROLADORES
+' ===========================================
+
+class AuthRouter {
+  -router: Express.Router
+  --
+  +post('/login', handler): void
+  +post('/register', handler): void
+  +get('/user/:id', handler): void
+  --
+  +login(req, res): Promise<Response>
+  +register(req, res): Promise<Response>
+  +getUserById(req, res): Promise<Response>
+}
+
+class BooksRouter {
+  -router: Express.Router
+  --
+  +post('/', validateUserId, handler): void
+  +get('/user/:userId', handler): void
+  +get('/:id', handler): void
+  +put('/:id', handler): void
+  +delete('/:id', handler): void
+  --
+  +createBook(req, res): Promise<Response>
+  +getUserBooks(req, res): Promise<Response>
+  +getBookById(req, res): Promise<Response>
+  +updateBook(req, res): Promise<Response>
+  +deleteBook(req, res): Promise<Response>
+  +validateUserId(req, res, next): void
+}
+
+' ===========================================
+' SERVIDOR Y CONFIGURACIÓN
+' ===========================================
+
+class App {
+  -app: Express.Application
+  -port: Number
+  --
+  +use(middleware): void
+  +listen(port, callback): void
+  +get('/', handler): void
+  +errorHandler(err, req, res, next): void
+}
+
+class Database {
+  +connectDB(): Promise<void>
+}
+
+' ===========================================
+' TIPOS DE RESPUESTA
+' ===========================================
+
+class ApiResponse {
+  +success: Boolean
+  +message?: String
+  +user?: UserDTO
+  +book?: BookDTO
+  +books?: BookDTO[]
+  +error?: String
+}
+
+class UserDTO {
+  +id: ObjectId
+  +username: String
+  +email: String
+  +preferences: UserPreferences
+  +createdAt: Date
+}
+
+class BookDTO {
+  +id: ObjectId
+  +userId: ObjectId
+  +title: String
+  +author: String
+  +isbn: String
+  +entryDate: Date
+  +readingStatus: String
+  +rating: Number
+  +review: String
+  +createdAt: Date
+  +updatedAt: Date
+}
+
+' ===========================================
+' RELACIONES
+' ===========================================
+
+User "1" *-- "1" UserPreferences : contiene
+User "1" ||--o{ Book : posee
+Book "N" --> "1" User : pertenece a
+
+AuthRouter ..> User : usa
+BooksRouter ..> Book : usa
+BooksRouter ..> User : referencia
+
+App ..> AuthRouter : usa
+App ..> BooksRouter : usa
+App ..> Database : conecta a
+
+AuthRouter --> ApiResponse : devuelve
+BooksRouter --> ApiResponse : devuelve
+ApiResponse ..> UserDTO : contiene
+ApiResponse ..> BookDTO : contiene
+
+' ===========================================
+' DEPENDENCIAS EXTERNAS
+' ===========================================
+
+package "MongoDB" {
+  class MongoDB {
+    +mongoose
+  }
+}
+
+package "Express" {
+  class Express {
+    +Router
+    +Application
+  }
+}
+
+User ..> MongoDB : usa
+Book ..> MongoDB : usa
+AuthRouter ..> Express : usa
+BooksRouter ..> Express : usa
+App ..> Express : usa
+
+@enduml
+

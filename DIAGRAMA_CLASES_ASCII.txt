@@ -1,0 +1,252 @@
+═══════════════════════════════════════════════════════════════════════════════
+                    DIAGRAMA DE CLASES - BIBLIOSMART
+═══════════════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          CAPA DE MODELOS (MongoDB)                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                    ┌──────────────────────────────┐
+                    │           User               │
+                    ├──────────────────────────────┤
+                    │ - _id: ObjectId              │
+                    │ - username: String           │
+                    │ - email: String (unique)     │
+                    │ - preferences: UserPrefs     │
+                    │ - createdAt: Date            │
+                    │ - updatedAt: Date            │
+                    ├──────────────────────────────┤
+                    │ + save(): Promise            │
+                    │ + findOne(): Promise         │
+                    │ + findById(): Promise        │
+                    └──────────────────────────────┘
+                              │
+                              │ 1:1
+                              │
+                              ▼
+                    ┌──────────────────────────────┐
+                    │    UserPreferences           │
+                    ├──────────────────────────────┤
+                    │ - genres: String[]           │
+                    │ - booksPerMonth: Number      │
+                    │ - favoriteAuthors: String[]  │
+                    │ - readingFormat: Enum        │
+                    │   (Físico|Digital|          │
+                    │    Audiolibro|Ambos)         │
+                    └──────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          RELACIÓN 1:N (User → Book)                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────┐                                    ┌──────────────────────────┐
+│    User      │                                    │         Book             │
+│              │                                    │                          │
+│  _id         │                                    │  _id: ObjectId           │
+│  username    │                                    │  userId: ObjectId (FK)   │
+│  email       │                                    │  title: String           │
+│  preferences │                                    │  author: String          │
+│  createdAt   │                                    │  isbn: String            │
+│  updatedAt   │                                    │  entryDate: Date         │
+└──────────────┘                                    │  readingStatus: Enum     │
+      │                                             │    (Por leer|Leyendo|    │
+      │ 1                                            │     Leído|Abandonado)   │
+      │                                             │  rating: Number (1-5)    │
+      │ posee muchos libros                         │  review: String          │
+      │                                             │  createdAt: Date         │
+      │                                             │  updatedAt: Date         │
+      │                                             ├──────────────────────────┤
+      └────────────────────────────────────────────►│  + save(): Promise      │
+                    N                               │  + find(): Promise       │
+                                                    │  + findById(): Promise   │
+                                                    │  + findByIdAndDelete()   │
+                                                    └──────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    CAPA DE ROUTERS/CONTROLADORES (Express)                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────┐  ┌────────────────────────────────┐
+│         AuthRouter                      │  │      BooksRouter               │
+├─────────────────────────────────────────┤  ├────────────────────────────────┤
+│ + POST /api/auth/login                  │  │ + POST /api/books              │
+│ + POST /api/auth/register               │  │ + GET /api/books/user/:userId  │
+│ + GET /api/auth/user/:id                │  │ + GET /api/books/:id           │
+├─────────────────────────────────────────┤  │ + PUT /api/books/:id           │
+│ + login(req, res): Promise              │  │ + DELETE /api/books/:id        │
+│ + register(req, res): Promise           │  ├────────────────────────────────┤
+│ + getUserById(req, res): Promise        │  │ + createBook()                 │
+└─────────────────────────────────────────┘  │ + getUserBooks()               │
+          │                                   │ + getBookById()                │
+          │ usa                                │ + updateBook()                 │
+          │                                   │ + deleteBook()                 │
+          ▼                                   │ + validateUserId()             │
+┌─────────────────────────────────────────┐  └────────────────────────────────┘
+│           User Model                    │                 │
+└─────────────────────────────────────────┘                 │ usa
+                                                             ▼
+                                            ┌────────────────────────────────┐
+                                            │        Book Model              │
+                                            └────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      CAPA DE APLICACIÓN (Express App)                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                    ┌──────────────────────────────┐
+                    │            App               │
+                    ├──────────────────────────────┤
+                    │ - app: Express.Application   │
+                    │ - port: Number               │
+                    ├──────────────────────────────┤
+                    │ + use(middleware): void      │
+                    │ + listen(port): void         │
+                    │ + errorHandler(): void       │
+                    └──────────────────────────────┘
+                              │
+                              │ contiene
+                              │
+                ┌─────────────┴─────────────┐
+                │                           │
+                ▼                           ▼
+    ┌───────────────────┐       ┌───────────────────┐
+    │   AuthRouter      │       │   BooksRouter     │
+    └───────────────────┘       └───────────────────┘
+                │                           │
+                │                           │
+                ▼                           ▼
+    ┌───────────────────┐       ┌───────────────────┐
+    │   User Model      │       │   Book Model      │
+    └───────────────────┘       └───────────────────┘
+                │                           │
+                └───────────┬───────────────┘
+                            │
+                            ▼
+                ┌───────────────────────┐
+                │      Database         │
+                ├───────────────────────┤
+                │ + connectDB(): Promise│
+                └───────────────────────┘
+                            │
+                            ▼
+                ┌───────────────────────┐
+                │      MongoDB          │
+                │   (Mongoose ODM)      │
+                └───────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    CAPA DE TRANSFERENCIA DE DATOS (DTOs)                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────┐
+│        ApiResponse                   │
+├──────────────────────────────────────┤
+│ + success: Boolean                   │
+│ + message?: String                   │
+│ + user?: UserDTO                     │
+│ + book?: BookDTO                     │
+│ + books?: BookDTO[]                  │
+│ + error?: String                     │
+└──────────────────────────────────────┘
+              │
+              │ contiene
+              │
+    ┌─────────┴──────────┐
+    │                    │
+    ▼                    ▼
+┌─────────────┐    ┌─────────────┐
+│  UserDTO    │    │  BookDTO    │
+├─────────────┤    ├─────────────┤
+│ + id        │    │ + id        │
+│ + username  │    │ + userId    │
+│ + email     │    │ + title     │
+│ + prefs     │    │ + author    │
+│ + createdAt │    │ + isbn      │
+└─────────────┘    │ + entryDate │
+                   │ + status    │
+                   │ + rating    │
+                   │ + review    │
+                   │ + createdAt │
+                   │ + updatedAt │
+                   └─────────────┘
+
+═══════════════════════════════════════════════════════════════════════════════
+                              FLUJO DE DATOS
+═══════════════════════════════════════════════════════════════════════════════
+
+Frontend (HTML/JS)
+       │
+       │ HTTP Request (JSON)
+       ▼
+┌─────────────────────┐
+│   Express App       │  ◄─── Middleware (CORS, JSON parser)
+│   (server.js)       │
+└─────────────────────┘
+       │
+       ├──────────────────► AuthRouter ──► User Model ──► MongoDB
+       │
+       └──────────────────► BooksRouter ──► Book Model ──► MongoDB
+                                             │
+                                             │ Query/Update
+                                             ▼
+                                    ┌──────────────┐
+                                    │   MongoDB    │
+                                    │   Database   │
+                                    └──────────────┘
+                                             │
+                                             │ Response
+                                             ▼
+       ┌─────────────────────┐     ┌──────────────┐
+       │  HTTP Response      │◄────│  ApiResponse │
+       │  (JSON)             │     └──────────────┘
+       └─────────────────────┘
+             │
+             ▼
+    Frontend (HTML/JS)
+
+═══════════════════════════════════════════════════════════════════════════════
+                         RELACIONES ENTRE CLASES
+═══════════════════════════════════════════════════════════════════════════════
+
+COMPOSICIÓN (1:1):
+  User ──┐
+         ├──► UserPreferences  (Un usuario TIENE UNA preferencia)
+
+AGREGACIÓN (1:N):
+  User ──┐
+         ├──► Book (Un usuario TIENE MUCHOS libros)
+
+ASOCIACIÓN (N:1):
+  Book ──┐
+         ├──► User (Muchos libros PERTENECEN A un usuario)
+
+DEPENDENCIA:
+  AuthRouter ───► User (AuthRouter USA el modelo User)
+  BooksRouter ───► Book (BooksRouter USA el modelo Book)
+  BooksRouter ───► User (BooksRouter REFERENCIA al modelo User)
+
+COMPOSICIÓN:
+  App ───► AuthRouter (App CONTIENE AuthRouter)
+  App ───► BooksRouter (App CONTIENE BooksRouter)
+
+DEPENDENCIA:
+  App ───► Database (App SE CONECTA A Database)
+
+═══════════════════════════════════════════════════════════════════════════════
+                         ENDPOINTS Y MÉTODOS
+═══════════════════════════════════════════════════════════════════════════════
+
+AUTENTICACIÓN (/api/auth):
+  POST   /api/auth/login          → login()          → Busca usuario por email
+  POST   /api/auth/register       → register()       → Crea nuevo usuario
+  GET    /api/auth/user/:id       → getUserById()    → Obtiene usuario por ID
+
+LIBROS (/api/books):
+  POST   /api/books               → createBook()     → Crea nuevo libro
+  GET    /api/books/user/:userId  → getUserBooks()   → Obtiene libros del usuario
+  GET    /api/books/:id           → getBookById()    → Obtiene libro por ID
+  PUT    /api/books/:id           → updateBook()     → Actualiza libro
+  DELETE /api/books/:id           → deleteBook()     → Elimina libro
+
+═══════════════════════════════════════════════════════════════════════════════
+

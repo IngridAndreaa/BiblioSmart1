@@ -17,8 +17,8 @@ document.addEventListener('DOMContentLoaded', function() {
   setupEditStars();
 });
 
-function loadBooks() {
-  allBooks = getUserBooks();
+async function loadBooks() {
+  allBooks = await getUserBooks();
   displayBooks(allBooks);
 }
 
@@ -87,8 +87,8 @@ function filterBooks(searchTerm) {
   displayBooks(filtered);
 }
 
-function editBook(bookId) {
-  const book = getBookById(bookId);
+async function editBook(bookId) {
+  const book = await getBookById(bookId);
   if (!book) {
     alert('Libro no encontrado.');
     return;
@@ -118,7 +118,7 @@ function editBook(bookId) {
   modal.show();
 }
 
-function saveBookEdit() {
+async function saveBookEdit() {
   const bookId = document.getElementById('editBookId').value;
   const title = document.getElementById('editTitle').value;
   const author = document.getElementById('editAuthor').value;
@@ -143,7 +143,8 @@ function saveBookEdit() {
     review
   };
   
-  if (updateBook(bookId, bookData)) {
+  const success = await updateBook(bookId, bookData);
+  if (success) {
     alert('Libro actualizado exitosamente.');
     const modal = bootstrap.Modal.getInstance(document.getElementById('editBookModal'));
     modal.hide();
@@ -153,14 +154,15 @@ function saveBookEdit() {
   }
 }
 
-function deleteBookConfirm(bookId) {
-  const book = getBookById(bookId);
+async function deleteBookConfirm(bookId) {
+  const book = await getBookById(bookId);
   if (!book) {
     return;
   }
   
   if (confirm(`¿Estás seguro de que deseas eliminar "${book.title}"?`)) {
-    if (deleteBook(bookId)) {
+    const success = await deleteBook(bookId);
+    if (success) {
       alert('Libro eliminado exitosamente.');
       loadBooks();
     } else {

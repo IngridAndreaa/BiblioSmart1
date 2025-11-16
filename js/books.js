@@ -1,7 +1,7 @@
-// Gestión de libros
+// Gestión de libros con API MongoDB
 
 // Guardar libro
-function saveBook(bookData) {
+async function saveBook(bookData) {
   const user = getCurrentUser();
   if (!user) {
     alert('Debes iniciar sesión para registrar libros.');
@@ -9,99 +9,131 @@ function saveBook(bookData) {
     return false;
   }
   
-  const books = JSON.parse(localStorage.getItem('books') || '{}');
-  if (!books[user.id]) {
-    books[user.id] = [];
+  try {
+    const response = await apiRequest('/books', {
+      method: 'POST',
+      body: JSON.stringify({
+        userId: user.id,
+        ...bookData
+      })
+    });
+    
+    return response.success;
+  } catch (error) {
+    console.error('Error al guardar libro:', error);
+    alert('Error al guardar el libro: ' + error.message);
+    return false;
   }
-  
-  const newBook = {
-    id: Date.now().toString(),
-    ...bookData,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  };
-  
-  books[user.id].push(newBook);
-  localStorage.setItem('books', JSON.stringify(books));
-  
-  return true;
 }
 
 // Obtener libros del usuario
-function getUserBooks() {
+async function getUserBooks() {
   const user = getCurrentUser();
   if (!user) {
     return [];
   }
   
-  const books = JSON.parse(localStorage.getItem('books') || '{}');
-  return books[user.id] || [];
+  try {
+    const response = await apiRequest(`/books/user/${user.id}`);
+    if (response.success) {
+      // Convertir el formato de MongoDB al formato esperado por el frontend
+      return response.books.map(book => ({
+        id: book._id || book.id,
+        title: book.title,
+        author: book.author,
+        isbn: book.isbn,
+        entryDate: book.entryDate ? new Date(book.entryDate).toISOString().split('T')[0] : book.entryDate,
+        readingStatus: book.readingStatus,
+        rating: book.rating,
+        review: book.review,
+        createdAt: book.createdAt,
+        updatedAt: book.updatedAt
+      }));
+    }
+    return [];
+  } catch (error) {
+    console.error('Error al obtener libros:', error);
+    return [];
+  }
 }
 
 // Actualizar libro
-function updateBook(bookId, bookData) {
+async function updateBook(bookId, bookData) {
   const user = getCurrentUser();
   if (!user) {
     return false;
   }
   
-  const books = JSON.parse(localStorage.getItem('books') || '{}');
-  if (!books[user.id]) {
+  try {
+    const response = await apiRequest(`/books/${bookId}`, {
+      method: 'PUT',
+      body: JSON.stringify(bookData)
+    });
+    
+    return response.success;
+  } catch (error) {
+    console.error('Error al actualizar libro:', error);
+    alert('Error al actualizar el libro: ' + error.message);
     return false;
   }
-  
-  const bookIndex = books[user.id].findIndex(b => b.id === bookId);
-  if (bookIndex === -1) {
-    return false;
-  }
-  
-  books[user.id][bookIndex] = {
-    ...books[user.id][bookIndex],
-    ...bookData,
-    updatedAt: new Date().toISOString()
-  };
-  
-  localStorage.setItem('books', JSON.stringify(books));
-  return true;
 }
 
 // Eliminar libro
-function deleteBook(bookId) {
+async function deleteBook(bookId) {
   const user = getCurrentUser();
   if (!user) {
     return false;
   }
   
-  const books = JSON.parse(localStorage.getItem('books') || '{}');
-  if (!books[user.id]) {
+  try {
+    const response = await apiRequest(`/books/${bookId}`, {
+      method: 'DELETE'
+    });
+    
+    return response.success;
+  } catch (error) {
+    console.error('Error al eliminar libro:', error);
+    alert('Error al eliminar el libro: ' + error.message);
     return false;
   }
-  
-  books[user.id] = books[user.id].filter(b => b.id !== bookId);
-  localStorage.setItem('books', JSON.stringify(books));
-  return true;
 }
 
 // Obtener libro por ID
-function getBookById(bookId) {
+async function getBookById(bookId) {
   const user = getCurrentUser();
   if (!user) {
     return null;
   }
   
-  const books = JSON.parse(localStorage.getItem('books') || '{}');
-  if (!books[user.id]) {
+  try {
+    const response = await apiRequest(`/books/${bookId}`);
+    if (response.success && response.book) {
+      const book = response.book;
+      return {
+        id: book._id || book.id,
+        title: book.title,
+        author: book.author,
+        isbn: book.isbn,
+        entryDate: book.entryDate ? new Date(book.entryDate).toISOString().split('T')[0] : book.entryDate,
+        readingStatus: book.readingStatus,
+        rating: book.rating,
+        review: book.review,
+        createdAt: book.createdAt,
+        updatedAt: book.updatedAt
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error('Error al obtener libro:', error);
     return null;
   }
-  
-  return books[user.id].find(b => b.id === bookId) || null;
 }
 
 // Manejar formulario de registro de libro
 document.addEventListener('DOMContentLoaded', function() {
   const bookForm = document.getElementById('bookForm');
   if (bookForm) {
-    bookForm.addEventListener('submit', function(e) {
+    bookForm.addEventListener('submit', async function(e) {
       e.preventDefault();
       
       const user = getCurrentUser();
@@ -134,7 +166,8 @@ document.addEventListener('DOMContentLoaded', function() {
         review
       };
       
-      if (saveBook(bookData)) {
+      const success = await saveBook(bookData);
+      if (success) {
         alert('Libro registrado exitosamente.');
         window.location.href = 'view-books.html';
       } else {

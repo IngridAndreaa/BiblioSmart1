@@ -1,21 +1,56 @@
-// Simulación de autenticación con Google
-// En una aplicación real, esto se conectaría con Google OAuth API
-
+// Autenticación con API MongoDB
 // Verificar si el usuario está autenticado
-function checkAuth() {
+async function checkAuth() {
   const currentUser = localStorage.getItem('currentUser');
   const currentPath = window.location.pathname;
   const isIndexPage = currentPath.endsWith('index.html') || currentPath.endsWith('/') || currentPath === '' || currentPath.endsWith('/BiblioSmart/');
   
   if (!currentUser && !isIndexPage) {
     window.location.href = 'index.html';
-    return false;
+    return null;
   }
-  return currentUser ? JSON.parse(currentUser) : null;
+  
+  if (!currentUser) {
+    return null;
+  }
+  
+  // Verificar que el usuario sigue siendo válido en el servidor
+  try {
+    const userData = JSON.parse(currentUser);
+    const response = await apiRequest(`/auth/user/${userData.id}`);
+    if (response.success) {
+      // Actualizar datos del usuario en localStorage
+      localStorage.setItem('currentUser', JSON.stringify(response.user));
+      return response.user;
+    }
+  } catch (error) {
+    // Usuario inválido o error de conexión, intentar usar datos locales
+    console.warn('Error verificando usuario en servidor, usando datos locales:', error.message);
+    try {
+      return JSON.parse(currentUser);
+    } catch (e) {
+      localStorage.removeItem('currentUser');
+      if (!isIndexPage) {
+        window.location.href = 'index.html';
+      }
+      return null;
+    }
+  }
+  
+  // Fallback: devolver usuario de localStorage
+  try {
+    return JSON.parse(currentUser);
+  } catch (e) {
+    localStorage.removeItem('currentUser');
+    if (!isIndexPage) {
+      window.location.href = 'index.html';
+    }
+    return null;
+  }
 }
 
 // Manejar login con Google (simulado)
-function handleGoogleLogin() {
+async function handleGoogleLogin() {
   // Simular autenticación de Google
   // En producción, esto se conectaría con Google OAuth
   const email = prompt('Ingresa tu email de Google (simulación):');
@@ -24,15 +59,19 @@ function handleGoogleLogin() {
     return;
   }
   
-  // Verificar si el usuario ya está registrado
-  const users = JSON.parse(localStorage.getItem('users') || '[]');
-  const user = users.find(u => u.email === email);
-  
-  if (user) {
-    // Usuario existe, iniciar sesión
-    localStorage.setItem('currentUser', JSON.stringify(user));
-    window.location.href = 'dashboard.html';
-  } else {
+  try {
+    // Verificar si el usuario ya está registrado en MongoDB
+    const response = await apiRequest('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email })
+    });
+    
+    if (response.success && response.user) {
+      // Usuario existe, iniciar sesión
+      localStorage.setItem('currentUser', JSON.stringify(response.user));
+      window.location.href = 'dashboard.html';
+    }
+  } catch (error) {
     // Usuario no registrado, mostrar mensaje de error
     const loginAlert = document.getElementById('loginAlert');
     if (loginAlert) {
@@ -59,7 +98,7 @@ function handleGoogleLogin() {
 document.addEventListener('DOMContentLoaded', function() {
   const registerForm = document.getElementById('registerForm');
   if (registerForm) {
-    registerForm.addEventListener('submit', function(e) {
+    registerForm.addEventListener('submit', async function(e) {
       e.preventDefault();
       
       const username = document.getElementById('username').value;
@@ -75,33 +114,30 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
       }
       
-      // Guardar usuario
-      const users = JSON.parse(localStorage.getItem('users') || '[]');
-      const newUser = {
-        id: Date.now().toString(),
-        username,
-        email,
-        preferences: {
-          genres,
-          booksPerMonth: parseInt(booksPerMonth),
-          favoriteAuthors: favoriteAuthors.split(',').map(a => a.trim()).filter(a => a),
-          readingFormat
-        },
-        createdAt: new Date().toISOString()
-      };
-      
-      users.push(newUser);
-      localStorage.setItem('users', JSON.stringify(users));
-      localStorage.setItem('currentUser', JSON.stringify(newUser));
-      
-      // Inicializar libros del usuario
-      const books = JSON.parse(localStorage.getItem('books') || '{}');
-      if (!books[newUser.id]) {
-        books[newUser.id] = [];
-        localStorage.setItem('books', JSON.stringify(books));
+      try {
+        // Registrar usuario en MongoDB
+        const response = await apiRequest('/auth/register', {
+          method: 'POST',
+          body: JSON.stringify({
+            username,
+            email,
+            preferences: {
+              genres,
+              booksPerMonth: parseInt(booksPerMonth),
+              favoriteAuthors: favoriteAuthors.split(',').map(a => a.trim()).filter(a => a),
+              readingFormat
+            }
+          })
+        });
+        
+        if (response.success && response.user) {
+          // Guardar usuario actual en localStorage
+          localStorage.setItem('currentUser', JSON.stringify(response.user));
+          window.location.href = 'dashboard.html';
+        }
+      } catch (error) {
+        alert('Error al registrar usuario: ' + error.message);
       }
-      
-      window.location.href = 'dashboard.html';
     });
   }
   
@@ -113,16 +149,19 @@ document.addEventListener('DOMContentLoaded', function() {
                           currentPath.includes('recommendations.html');
   
   if (isProtectedPage) {
-    const user = checkAuth();
-    if (!user) {
-      return;
-    }
-    
-    // Mostrar nombre de usuario si existe el elemento
-    const userNameDisplay = document.getElementById('userNameDisplay');
-    if (userNameDisplay) {
-      userNameDisplay.textContent = user.username;
-    }
+    checkAuth().then(user => {
+      if (!user) {
+        return;
+      }
+      
+      // Mostrar nombre de usuario si existe el elemento
+      const userNameDisplay = document.getElementById('userNameDisplay');
+      if (userNameDisplay) {
+        userNameDisplay.textContent = user.username;
+      }
+    }).catch(error => {
+      console.error('Error verificando autenticación:', error);
+    });
   }
 });
 
