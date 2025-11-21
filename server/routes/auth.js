@@ -1,9 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
+const { checkConnection } = require('../config/database');
+
+// Middleware para verificar conexión a MongoDB
+const checkMongoConnection = (req, res, next) => {
+  if (!checkConnection()) {
+    return res.status(503).json({
+      success: false,
+      message: 'MongoDB no está disponible. Por favor, inicia MongoDB y recarga la página.'
+    });
+  }
+  next();
+};
 
 // Login - Buscar usuario por email
-router.post('/login', async (req, res) => {
+router.post('/login', checkMongoConnection, async (req, res) => {
   try {
     const { email } = req.body;
     
@@ -43,7 +55,7 @@ router.post('/login', async (req, res) => {
 });
 
 // Registro de nuevo usuario
-router.post('/register', async (req, res) => {
+router.post('/register', checkMongoConnection, async (req, res) => {
   try {
     const { username, email, preferences } = req.body;
 
@@ -112,7 +124,7 @@ router.post('/register', async (req, res) => {
 });
 
 // Obtener usuario por ID
-router.get('/user/:id', async (req, res) => {
+router.get('/user/:id', checkMongoConnection, async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
     

@@ -55,15 +55,38 @@ async function handleGoogleLogin() {
   // En producción, esto se conectaría con Google OAuth
   const email = prompt('Ingresa tu email de Google (simulación):');
   
-  if (!email) {
+  if (!email || email.trim() === '') {
+    return;
+  }
+  
+  const trimmedEmail = email.trim();
+  
+  // Validar formato de email básico
+  if (!trimmedEmail.includes('@') || !trimmedEmail.includes('.')) {
+    const loginAlert = document.getElementById('loginAlert');
+    if (loginAlert) {
+      loginAlert.innerHTML = '<strong>Error:</strong> Por favor, ingresa un email válido.';
+      loginAlert.style.display = 'block';
+      setTimeout(() => {
+        loginAlert.style.display = 'none';
+      }, 3000);
+    } else {
+      alert('Por favor, ingresa un email válido.');
+    }
     return;
   }
   
   try {
+    // Mostrar indicador de carga
+    const googleBtn = document.querySelector('.google-btn');
+    const originalBtnText = googleBtn.innerHTML;
+    googleBtn.disabled = true;
+    googleBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Verificando...';
+    
     // Verificar si el usuario ya está registrado en MongoDB
     const response = await apiRequest('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email })
+      body: JSON.stringify({ email: trimmedEmail })
     });
     
     if (response.success && response.user) {
@@ -72,7 +95,29 @@ async function handleGoogleLogin() {
       window.location.href = 'dashboard.html';
     }
   } catch (error) {
-    // Usuario no registrado, mostrar mensaje de error
+    console.error('Error en login:', error);
+    
+    // Restaurar botón
+    const googleBtn = document.querySelector('.google-btn');
+    googleBtn.disabled = false;
+    googleBtn.innerHTML = '<i class="bi bi-google"></i> Continuar con Google';
+    
+    // Verificar si es un error 404 (usuario no encontrado) o error de conexión
+    const isUserNotFound = error.message.includes('no encontrado') || error.message.includes('404');
+    const isConnectionError = error.message.includes('conectar') || error.message.includes('servidor');
+    
+    if (isConnectionError) {
+      const loginAlert = document.getElementById('loginAlert');
+      if (loginAlert) {
+        loginAlert.innerHTML = '<strong>Error de conexión:</strong> ' + error.message;
+        loginAlert.style.display = 'block';
+      } else {
+        alert('Error de conexión: ' + error.message);
+      }
+      return;
+    }
+    
+    // Usuario no registrado, mostrar mensaje y formulario de registro
     const loginAlert = document.getElementById('loginAlert');
     if (loginAlert) {
       loginAlert.innerHTML = '<strong>¡Oops!</strong> Cuenta no registrada. Por favor, completa el registro primero.';
@@ -83,13 +128,13 @@ async function handleGoogleLogin() {
         loginAlert.style.display = 'none';
         document.getElementById('loginSection').classList.remove('active');
         document.getElementById('registerSection').classList.add('active');
-        document.getElementById('email').value = email;
+        document.getElementById('email').value = trimmedEmail;
       }, 3000);
     } else {
       // Si no hay elemento de alerta, mostrar formulario directamente
       document.getElementById('loginSection').classList.remove('active');
       document.getElementById('registerSection').classList.add('active');
-      document.getElementById('email').value = email;
+      document.getElementById('email').value = trimmedEmail;
     }
   }
 }
@@ -108,23 +153,58 @@ document.addEventListener('DOMContentLoaded', function() {
       const favoriteAuthors = document.getElementById('favoriteAuthors').value;
       const readingFormat = document.getElementById('readingFormat').value;
       
+      // Ocultar alertas previas
+      const registerAlert = document.getElementById('registerAlert');
+      if (registerAlert) {
+        registerAlert.style.display = 'none';
+      }
+      
+      // Validar campos requeridos
+      if (!username || username.trim() === '') {
+        showRegisterError('Por favor, ingresa un nombre de usuario.');
+        return;
+      }
+      
+      if (!email || email.trim() === '') {
+        showRegisterError('Por favor, ingresa un email válido.');
+        return;
+      }
+      
       // Validar que se hayan seleccionado géneros
       if (genres.length === 0) {
-        alert('Por favor, selecciona al menos un género literario.');
+        showRegisterError('Por favor, selecciona al menos un género literario.');
+        return;
+      }
+      
+      // Validar booksPerMonth
+      if (!booksPerMonth || booksPerMonth < 0) {
+        showRegisterError('Por favor, ingresa un número válido de libros por mes.');
+        return;
+      }
+      
+      // Validar readingFormat
+      if (!readingFormat || readingFormat === '') {
+        showRegisterError('Por favor, selecciona un formato de lectura preferido.');
         return;
       }
       
       try {
+        // Mostrar indicador de carga
+        const submitButton = registerForm.querySelector('button[type="submit"]');
+        const originalButtonText = submitButton.textContent;
+        submitButton.disabled = true;
+        submitButton.textContent = 'Registrando...';
+        
         // Registrar usuario en MongoDB
         const response = await apiRequest('/auth/register', {
           method: 'POST',
           body: JSON.stringify({
-            username,
-            email,
+            username: username.trim(),
+            email: email.trim(),
             preferences: {
               genres,
               booksPerMonth: parseInt(booksPerMonth),
-              favoriteAuthors: favoriteAuthors.split(',').map(a => a.trim()).filter(a => a),
+              favoriteAuthors: favoriteAuthors ? favoriteAuthors.split(',').map(a => a.trim()).filter(a => a) : [],
               readingFormat
             }
           })
@@ -134,9 +214,17 @@ document.addEventListener('DOMContentLoaded', function() {
           // Guardar usuario actual en localStorage
           localStorage.setItem('currentUser', JSON.stringify(response.user));
           window.location.href = 'dashboard.html';
+        } else {
+          throw new Error('No se pudo completar el registro. Por favor, intenta nuevamente.');
         }
       } catch (error) {
-        alert('Error al registrar usuario: ' + error.message);
+        console.error('Error al registrar:', error);
+        showRegisterError('Error al registrar usuario: ' + error.message);
+        
+        // Restaurar botón
+        const submitButton = registerForm.querySelector('button[type="submit"]');
+        submitButton.disabled = false;
+        submitButton.textContent = 'Completar Registro';
       }
     });
   }
@@ -175,5 +263,18 @@ function logout() {
 function getCurrentUser() {
   const currentUser = localStorage.getItem('currentUser');
   return currentUser ? JSON.parse(currentUser) : null;
+}
+
+// Mostrar error en el formulario de registro
+function showRegisterError(message) {
+  const registerAlert = document.getElementById('registerAlert');
+  if (registerAlert) {
+    registerAlert.innerHTML = '<strong>Error:</strong> ' + message;
+    registerAlert.style.display = 'block';
+    // Hacer scroll al mensaje de error
+    registerAlert.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } else {
+    alert(message);
+  }
 }
 

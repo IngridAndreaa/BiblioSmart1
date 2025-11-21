@@ -1,13 +1,15 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
-const connectDB = require('./config/database');
+const { connectDB, checkConnection } = require('./config/database');
 
 // Cargar variables de entorno
 dotenv.config();
 
-// Conectar a MongoDB
-connectDB();
+// Conectar a MongoDB (no bloquea el inicio del servidor)
+connectDB().catch(err => {
+  console.error('Error al intentar conectar MongoDB:', err.message);
+});
 
 const app = express();
 
