@@ -21,10 +21,11 @@ app.use(express.urlencoded({ extended: true }));
 // Rutas
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/books', require('./routes/books'));
+app.use('/api/chatbot', require('./routes/chatbot'));
 
 // Ruta de prueba
 app.get('/', (req, res) => {
-  res.json({ 
+  res.json({
     message: 'BiblioSmart API está funcionando!',
     version: '1.0.0'
   });
@@ -33,9 +34,9 @@ app.get('/', (req, res) => {
 // Manejo de errores
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ 
-    success: false, 
-    message: 'Error en el servidor', 
+  res.status(500).json({
+    success: false,
+    message: 'Error en el servidor',
     error: process.env.NODE_ENV === 'development' ? err.message : 'Error interno del servidor'
   });
 });

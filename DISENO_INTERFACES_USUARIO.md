@@ -510,3 +510,5 @@ El sistema está preparado para escalar y agregar funcionalidades futuras como l
 
 
 
+
+
