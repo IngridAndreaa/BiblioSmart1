@@ -1,9 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-
-// Inicializar Gemini AI
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 // Contexto del sistema para BiblioSmart
 const SYSTEM_CONTEXT = `Eres un asistente virtual especializado en BiblioSmart, una aplicación de gestión de biblioteca personal.
@@ -35,92 +31,91 @@ router.post('/message', async (req, res) => {
         }
 
         // Verificar si hay API key configurada
-        if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'your_api_key_here') {
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey || apiKey === 'your_api_key_here') {
             return res.status(503).json({
                 success: false,
                 error: 'API_KEY_NOT_CONFIGURED',
-                message: 'La API key de Gemini no está configurada. Por favor, configura GEMINI_API_KEY en el archivo .env'
+                message: 'La API key de Gemini no está configurada.'
             });
         }
 
-        // Construir contexto adicional del usuario si está disponible
+        // Construir contexto adicional del usuario
         let contextPrompt = SYSTEM_CONTEXT;
-
         if (userContext) {
             contextPrompt += `\n\nInformación del usuario actual:`;
-
             if (userContext.preferences) {
                 const { genres, favoriteAuthors, booksPerMonth } = userContext.preferences;
-                if (genres && genres.length > 0) {
-                    contextPrompt += `\n- Géneros favoritos: ${genres.join(', ')}`;
-                }
-                if (favoriteAuthors && favoriteAuthors.length > 0) {
-                    contextPrompt += `\n- Autores favoritos: ${favoriteAuthors.join(', ')}`;
-                }
-                if (booksPerMonth) {
-                    contextPrompt += `\n- Lee aproximadamente ${booksPerMonth} libros al mes`;
-                }
+                if (genres?.length > 0) contextPrompt += `\n- Géneros favoritos: ${genres.join(', ')}`;
+                if (favoriteAuthors?.length > 0) contextPrompt += `\n- Autores favoritos: ${favoriteAuthors.join(', ')}`;
+                if (booksPerMonth) contextPrompt += `\n- Lee aprox. ${booksPerMonth} libros/mes`;
             }
+            if (userContext.booksCount) contextPrompt += `\n- Tiene ${userContext.booksCount} libros registrados`;
+        }
 
-            if (userContext.booksCount) {
-                contextPrompt += `\n- Tiene ${userContext.booksCount} libros registrados en su biblioteca`;
+        const fullPrompt = `${contextPrompt}\n\nUsuario: ${message}\n\nAsistente:`;
+
+        // Lista de modelos a probar
+        const modelsToTry = [
+            'gemini-1.5-flash',
+            'gemini-pro',
+            'gemini-1.0-pro',
+            'gemini-1.5-pro'
+        ];
+
+        let responseText = null;
+        let usedModel = null;
+        let lastError = null;
+
+        // Intentar con cada modelo
+        for (const model of modelsToTry) {
+            try {
+                console.log(`Intentando con modelo: ${model}...`);
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: fullPrompt }] }]
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error?.message || response.statusText);
+                }
+
+                if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
+                    responseText = data.candidates[0].content.parts[0].text;
+                    usedModel = model;
+                    console.log(`✅ Éxito con modelo: ${model}`);
+                    break;
+                }
+            } catch (error) {
+                console.error(`❌ Fallo con ${model}: ${error.message}`);
+                lastError = error;
             }
         }
 
-        // Obtener el modelo Gemini
-        const model = genAI.getGenerativeModel({
-            model: 'gemini-1.5-flash',
-            systemInstruction: contextPrompt
-        });
-
-        // Configuración de generación
-        const generationConfig = {
-            temperature: 0.9,
-            topP: 0.95,
-            topK: 40,
-            maxOutputTokens: 1024,
-        };
-
-        // Generar respuesta
-        const result = await model.generateContent({
-            contents: [{ role: 'user', parts: [{ text: message }] }],
-            generationConfig,
-        });
-
-        const response = result.response;
-        const text = response.text();
+        if (!responseText) {
+            throw lastError || new Error('No se pudo generar respuesta con ningún modelo disponible.');
+        }
 
         res.json({
             success: true,
-            message: text,
-            model: 'gemini-1.5-flash'
+            message: responseText,
+            model: usedModel
         });
 
     } catch (error) {
         console.error('Error en chatbot:', error);
-
-        // Manejar diferentes tipos de errores
-        if (error.message && error.message.includes('API_KEY_INVALID')) {
-            return res.status(401).json({
-                success: false,
-                error: 'API_KEY_INVALID',
-                message: 'La API key de Gemini no es válida. Verifica tu configuración.'
-            });
-        }
-
-        if (error.message && error.message.includes('QUOTA_EXCEEDED')) {
-            return res.status(429).json({
-                success: false,
-                error: 'QUOTA_EXCEEDED',
-                message: 'Se ha excedido la cuota de la API. Intenta más tarde.'
-            });
-        }
-
         res.status(500).json({
             success: false,
             error: 'INTERNAL_ERROR',
-            message: 'Error al procesar tu mensaje. Por favor, intenta de nuevo.',
-            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+            message: 'Error al procesar tu mensaje. Por favor intenta de nuevo.',
+            details: error.message
         });
     }
 });

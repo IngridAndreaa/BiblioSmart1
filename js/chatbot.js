@@ -13,12 +13,9 @@ class BiblioSmartChatbot {
     }
 
     init() {
-        // Cargar contexto del usuario
-        this.context.user = getCurrentUser();
-        if (this.context.user) {
-            this.context.userBooks = getUserBooks();
-            this.context.recommendations = getRecommendations(this.context.user);
-        }
+        // Cargar contexto del usuario desde localStorage
+        const userStr = localStorage.getItem('currentUser');
+        this.context.user = userStr ? JSON.parse(userStr) : null;
 
         // Mensaje de bienvenida
         this.addBotMessage(
@@ -135,6 +132,7 @@ class BiblioSmartChatbot {
                 this.addBotMessage(response.message);
             } else {
                 // Manejar errores específicos
+                console.log('Error del servidor:', response);
                 if (response.error === 'API_KEY_NOT_CONFIGURED') {
                     this.addBotMessage(
                         '⚠️ El chatbot con IA aún no está configurado. Por favor, configura la API key de Gemini en el servidor.<br><br>Para obtener tu API key gratuita, visita: <a href="https://makersuite.google.com/app/apikey" target="_blank">Google AI Studio</a>',
@@ -147,7 +145,7 @@ class BiblioSmartChatbot {
                     );
                 } else {
                     this.addBotMessage(
-                        'Lo siento, hubo un error al procesar tu mensaje. Por favor, intenta de nuevo.',
+                        `Lo siento, hubo un error: ${response.error || 'Error desconocido'}. ${response.message || 'Por favor, intenta de nuevo.'}`,
                         this.getQuickReplies('welcome')
                     );
                 }
